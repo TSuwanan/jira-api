@@ -1,23 +1,8 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
+import { Elysia } from "elysia";
 
-dotenv.config();
+const app = new Elysia()
+  .get("/", () => "Hello Elysia")
+  .get("/hello", () => "Hello Elysia")
+  .listen(8000);
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-const PORT = process.env.PORT || 8000;
-
-app.get("/", (req, res) => {
-  res.send("API is running");
-});
-
-// app.get("/hello", (req, res) => {
-//   res.send("Hello Express 🚀");
-// });
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`);
