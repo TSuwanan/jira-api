@@ -35,21 +35,31 @@ export async function up(pool: Pool) {
   `);
   console.log("✅ Created sequences");
   
-  // Create users table
-  await pool.query(`
+    // Create users table
+    await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-      user_code VARCHAR(20) UNIQUE NOT NULL DEFAULT ('LCB' || LPAD(nextval('user_code_seq')::TEXT, 4, '0')),
-      email VARCHAR(255) UNIQUE NOT NULL,
-      password_hash VARCHAR(255) NOT NULL,
-      full_name VARCHAR(255),
-      role_id INTEGER DEFAULT 2 REFERENCES roles(id),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_code VARCHAR(20) UNIQUE NOT NULL DEFAULT ('LCB' || LPAD(nextval('user_code_seq')::TEXT, 4, '0')),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        full_name VARCHAR(255),
+        role_id INTEGER DEFAULT 2 REFERENCES roles(id),
+        position_code VARCHAR(100),
+        level_code VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        deleted_at TIMESTAMP DEFAULT NULL
     )
-  `);
-  console.log("✅ Created users table");
-  
+    `);
+
+    // เพิ่ม comments แยก
+    await pool.query(`
+    COMMENT ON COLUMN users.position_code IS 'Position codes: DEV=Developer, QA=Quality Assurance, PM=Project Manager, DES=Designer';
+    COMMENT ON COLUMN users.level_code IS 'Level codes: S=Senior, M=Middle, J=Junior, L=Lead';
+    `);
+
+    console.log("✅ Created users table");
+    
   // Create projects table
   await pool.query(`
     CREATE TABLE IF NOT EXISTS projects (
@@ -59,7 +69,8 @@ export async function up(pool: Pool) {
       description TEXT,
       owner_id UUID REFERENCES users(id),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP DEFAULT NULL
     )
   `);
   console.log("✅ Created projects table");
@@ -88,7 +99,8 @@ export async function up(pool: Pool) {
       created_by UUID REFERENCES users(id),
       due_date DATE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP DEFAULT NULL
     )
   `);
   console.log("✅ Created tasks table");

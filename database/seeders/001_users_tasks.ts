@@ -31,16 +31,16 @@ export async function up(pool: Pool) {
 
   // Create users (user_code จะถูก generate อัตโนมัติ)
   const usersResult = await pool.query(`
-    INSERT INTO users (email, password_hash, full_name, role_id) VALUES
-    ('admin@example.com', $1, 'Admin User', 1),
-    ('john@example.com', $2, 'John Doe', 2),
-    ('jane@example.com', $2, 'Jane Smith', 2)
-    RETURNING id, user_code, email, full_name, role_id
+    INSERT INTO users (email, password_hash, full_name, role_id, position_code, level_code) VALUES
+    ('admin@example.com', $1, 'เอมิลี่ คูเปอร์', 1, 'DEV', 'S'),
+    ('mintra@example.com', $2, 'มินตรา ใจดี', 2, 'DEV', 'M'),
+    ('ninna@example.com', $2, 'นินา พูนสุข', 2, 'QA', 'M')
+    RETURNING id, user_code, email, full_name, role_id, position_code, level_code
   `, [adminPassword, userPassword]);
   
   console.log("✅ Created users:", usersResult.rows);
 
-  const [admin, john, jane] = usersResult.rows;
+  const [admin, mintra, ninna] = usersResult.rows;
 
   // Create projects (project_code จะถูก generate อัตโนมัติ)
   const projectsResult = await pool.query(`
@@ -49,7 +49,7 @@ export async function up(pool: Pool) {
     ('Mobile App', 'Develop iOS and Android mobile application', $1),
     ('API Development', 'Build RESTful API for all services', $2)
     RETURNING id, project_code, name, owner_id
-  `, [admin.id, john.id]);
+  `, [admin.id, mintra.id]);
 
   console.log("✅ Created projects:", projectsResult.rows);
 
@@ -63,7 +63,7 @@ export async function up(pool: Pool) {
     ($4, $2),
     ($4, $5),
     ($6, $3)
-  `, [project1.id, john.id, jane.id, project2.id, jane.id, project3.id]);
+  `, [project1.id, admin.id, mintra.id, project2.id, mintra.id, project3.id]);
 
   console.log("✅ Added project members");
 
@@ -78,7 +78,7 @@ export async function up(pool: Pool) {
     ($7, 'Define API endpoints', 'Document all required API endpoints', 'done', 'high', $2, $6, CURRENT_DATE - INTERVAL '5 days'),
     ($7, 'Implement authentication', 'Add JWT authentication to API', 'in_progress', 'high', $2, $6, CURRENT_DATE + INTERVAL '2 days')
     RETURNING id, task_code, title, status
-  `, [project1.id, john.id, admin.id, jane.id, project2.id, john.id, project3.id]);
+  `, [project1.id, mintra.id, admin.id, ninna.id, project2.id, mintra.id, project3.id]);
 
   console.log("✅ Created tasks:", tasksResult.rows);
 
@@ -93,7 +93,7 @@ export async function up(pool: Pool) {
     ($1, $3, 'Sure, I will update the mockup today.'),
     ($4, $5, 'Which CI/CD tool should we use?'),
     ($4, $6, 'Let''s go with GitHub Actions for now.')
-  `, [homepageTask.id, admin.id, jane.id, cicdTask.id, jane.id, john.id]);
+  `, [homepageTask.id, admin.id, ninna.id, cicdTask.id, ninna.id, mintra.id]);
 
   console.log("✅ Created comments");
   console.log("✅ Seed 001_users_tasks completed");
