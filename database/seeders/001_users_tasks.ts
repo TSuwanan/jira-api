@@ -4,6 +4,27 @@ import bcrypt from "bcryptjs";
 export async function up(pool: Pool) {
   console.log("Running seed: 001_users_tasks");
 
+  // เช็คทุก table ก่อนรัน seed
+  const usersCount = await pool.query(`SELECT COUNT(*) as count FROM users`);
+  const projectsCount = await pool.query(`SELECT COUNT(*) as count FROM projects`);
+  const tasksCount = await pool.query(`SELECT COUNT(*) as count FROM tasks`);
+  const commentsCount = await pool.query(`SELECT COUNT(*) as count FROM comments`);
+
+  // ถ้า table ใดมีข้อมูลแล้ว ให้ข้าม seed
+  if (
+    parseInt(usersCount.rows[0].count) > 0 ||
+    parseInt(projectsCount.rows[0].count) > 0 ||
+    parseInt(tasksCount.rows[0].count) > 0 ||
+    parseInt(commentsCount.rows[0].count) > 0
+  ) {
+    console.log("⏭️  Skipping seed (data already exists in one or more tables)");
+    console.log(`   - Users: ${usersCount.rows[0].count}`);
+    console.log(`   - Projects: ${projectsCount.rows[0].count}`);
+    console.log(`   - Tasks: ${tasksCount.rows[0].count}`);
+    console.log(`   - Comments: ${commentsCount.rows[0].count}`);
+    return;
+  }
+
   // Hash passwords
   const adminPassword = await bcrypt.hash("admin123", 10);
   const userPassword = await bcrypt.hash("user123", 10);
@@ -14,10 +35,6 @@ export async function up(pool: Pool) {
     ('admin@example.com', $1, 'Admin User', 1),
     ('john@example.com', $2, 'John Doe', 2),
     ('jane@example.com', $2, 'Jane Smith', 2)
-    ON CONFLICT (email) DO UPDATE SET
-      password_hash = EXCLUDED.password_hash,
-      full_name = EXCLUDED.full_name,
-      role_id = EXCLUDED.role_id
     RETURNING id, user_code, email, full_name, role_id
   `, [adminPassword, userPassword]);
   
@@ -31,7 +48,6 @@ export async function up(pool: Pool) {
     ('Website Redesign', 'Redesign company website with modern UI', $1),
     ('Mobile App', 'Develop iOS and Android mobile application', $1),
     ('API Development', 'Build RESTful API for all services', $2)
-    ON CONFLICT (project_code) DO NOTHING
     RETURNING id, project_code, name, owner_id
   `, [admin.id, john.id]);
 
@@ -47,7 +63,6 @@ export async function up(pool: Pool) {
     ($4, $2),
     ($4, $5),
     ($6, $3)
-    ON CONFLICT (project_id, user_id) DO NOTHING
   `, [project1.id, john.id, jane.id, project2.id, jane.id, project3.id]);
 
   console.log("✅ Added project members");
@@ -67,14 +82,18 @@ export async function up(pool: Pool) {
 
   console.log("✅ Created tasks:", tasksResult.rows);
 
-  // Create comments
+  // หา task ids จาก RETURNING
+  const homepageTask = tasksResult.rows.find(t => t.title === 'Design homepage mockup');
+  const cicdTask = tasksResult.rows.find(t => t.title === 'Setup CI/CD pipeline');
+
+  // Create comments โดยใช้ id ที่ได้จาก RETURNING
   await pool.query(`
     INSERT INTO comments (task_id, user_id, content) VALUES
-    ((SELECT id FROM tasks WHERE title = 'Design homepage mockup'), $1, 'Looking great so far! Can we add more whitespace?'),
-    ((SELECT id FROM tasks WHERE title = 'Design homepage mockup'), $2, 'Sure, I will update the mockup today.'),
-    ((SELECT id FROM tasks WHERE title = 'Setup CI/CD pipeline'), $3, 'Which CI/CD tool should we use?'),
-    ((SELECT id FROM tasks WHERE title = 'Setup CI/CD pipeline'), $4, 'Let''s go with GitHub Actions for now.')
-  `, [admin.id, jane.id, jane.id, john.id]);
+    ($1, $2, 'Looking great so far! Can we add more whitespace?'),
+    ($1, $3, 'Sure, I will update the mockup today.'),
+    ($4, $5, 'Which CI/CD tool should we use?'),
+    ($4, $6, 'Let''s go with GitHub Actions for now.')
+  `, [homepageTask.id, admin.id, jane.id, cicdTask.id, jane.id, john.id]);
 
   console.log("✅ Created comments");
   console.log("✅ Seed 001_users_tasks completed");
@@ -87,7 +106,7 @@ export async function down(pool: Pool) {
   await pool.query(`DELETE FROM tasks`);
   await pool.query(`DELETE FROM project_members`);
   await pool.query(`DELETE FROM projects`);
-  await pool.query(`DELETE FROM users WHERE email LIKE '%@example.com'`);
+  await pool.query(`DELETE FROM users`);
   
   console.log("✅ Seed rollback completed");
 }
