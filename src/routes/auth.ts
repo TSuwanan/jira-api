@@ -7,42 +7,6 @@ import { jwtPlugin, authMiddleware } from "../middleware/auth";
 export const authRoutes = new Elysia({ prefix: "/api/auth" })
   .use(jwtPlugin)
 
-  // Register
-  .post("/register", async ({ body, jwt, set }) => {
-    try {
-      // Validate with Zod
-      const validatedData = registerSchema.parse(body);
-
-      const user = await AuthController.register(validatedData);
-
-      // Generate JWT
-      const token = await jwt.sign({
-        id: user.id,
-        email: user.email,
-        role_id: user.role_id,
-      });
-
-      set.status = 201;
-      return { user, token };
-    } catch (error: any) {
-      // Zod validation errors
-      if (error instanceof ZodError) {
-        set.status = 400;
-        return {
-          error: "Validation failed",
-          details: error.issues.map((err) => ({
-            field: err.path.join("."),
-            message: err.message,
-          })),
-        };
-      }
-
-      // Other errors
-      set.status = error.message === "Email already exists" ? 400 : 500;
-      return { error: error.message };
-    }
-  })
-
   // Login
   .post("/login", async ({ body, jwt, set }) => {
     try {
