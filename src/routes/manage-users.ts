@@ -31,6 +31,21 @@ export const userRoutes = new Elysia({ prefix: "/api/users" })
         }
       })
 
+      // GET /api/users/members - Get all members (role_id = 2)
+      .get("/members", async ({ user, set }) => {
+        try {
+          const result = await UserController.getMembers(user);
+          return { data: result, message: "Members retrieved successfully", status: 200 };
+        } catch (error: any) {
+          if (error.message === "Unauthorized: Only admin can view members") {
+            set.status = 403;
+            return { error: error.message };
+          }
+          set.status = 500;
+          return { error: error.message };
+        }
+      })
+
       // POST /api/users - Add new user (admin only)
       .post("/", async ({ body, user, set }) => {
         try {

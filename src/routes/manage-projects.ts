@@ -38,6 +38,27 @@ export const projectRoutes = new Elysia({ prefix: "/api/projects" })
         }
       })
 
+      // GET /api/projects/:id/members - Get project members
+      .get("/:id/members", async ({ params, set, user }) => {
+        try {
+          const result = await ProjectController.getProjectMembers(params.id, user);
+          return {
+            data: result,
+            message: "Project members retrieved successfully",
+            status: 200
+          };
+        } catch (error: any) {
+          if (error.message.includes("Unauthorized")) {
+            set.status = 403;
+          } else if (error.message === "Project not found") {
+            set.status = 404;
+          } else {
+            set.status = 500;
+          }
+          return { error: error.message };
+        }
+      })
+
       // POST /api/projects - Add new project
       .post("/", async ({ body, user, set }) => {
         try {

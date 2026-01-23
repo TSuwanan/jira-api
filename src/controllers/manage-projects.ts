@@ -109,6 +109,38 @@ export class ProjectController {
     return result.rows[0];
   }
 
+  // Get project members by project ID
+  static async getProjectMembers(projectId: string, user: any) {
+    if (!(await checkIsAdmin(user.id))) {
+      throw new Error("Unauthorized: Only admin can view project members");
+    }
+
+    // Check if project exists
+    const projectCheck = await pool.query(
+      "SELECT id FROM projects WHERE id = $1 AND deleted_at IS NULL",
+      [projectId]
+    );
+
+    if (projectCheck.rows.length === 0) {
+      throw new Error("Project not found");
+    }
+
+    const query = `
+      SELECT
+        u.id,
+        u.user_code,
+        u.full_name,
+        u.email
+      FROM project_members pm
+      INNER JOIN users u ON pm.user_id = u.id AND u.deleted_at IS NULL
+      WHERE pm.project_id = $1
+    `;
+
+    const result = await pool.query(query, [projectId]);
+
+    return result.rows;
+  }
+
   // Add new project
   static async addProject(data: CreateProjectInput, user: any) {
     const { name, description, member_ids } = data;
@@ -179,6 +211,16 @@ export class ProjectController {
       throw new Error("Unauthorized: Only owner or admin can edit this project");
     }
 
+    // Check if any tasks in this project are In Progress (I) or Done (D)
+    const taskCheck = await pool.query(
+      "SELECT id FROM tasks WHERE project_id = $1 AND status IN ('I', 'D') AND deleted_at IS NULL",
+      [projectId]
+    );
+
+    if (taskCheck.rows.length > 0) {
+      throw new Error("Cannot edit project: Some tasks are In Progress or Done");
+    }
+
     const { name, description, owner_id, member_ids } = data;
 
     // Build dynamic update query for project fields
@@ -246,11 +288,11 @@ export class ProjectController {
     return result.rows[0];
   }
 
-  // Delete project (soft delete)
+  // Delete project (hard delete)
   static async deleteProject(projectId: string, user: any) {
     // Check project and permission
     const existing = await pool.query(
-      "SELECT owner_id FROM projects WHERE id = $1 AND deleted_at IS NULL",
+      "SELECT owner_id FROM projects WHERE id = $1",
       [projectId]
     );
 
@@ -265,9 +307,19 @@ export class ProjectController {
       throw new Error("Unauthorized: Only owner or admin can delete this project");
     }
 
-    // Soft delete
+    // Check if any tasks in this project are In Progress (I) or Done (D)
+    const taskCheck = await pool.query(
+      "SELECT id FROM tasks WHERE project_id = $1 AND status IN ('I', 'D') AND deleted_at IS NULL",
+      [projectId]
+    );
+
+    if (taskCheck.rows.length > 0) {
+      throw new Error("Cannot delete project: Some tasks are In Progress or Done");
+    }
+
+    // Hard delete (cascade will handle project_members and tasks)
     await pool.query(
-      "UPDATE projects SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1",
+      "DELETE FROM projects WHERE id = $1",
       [projectId]
     );
 

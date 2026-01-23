@@ -48,6 +48,23 @@ export class UserController {
     };
   }
 
+  // Get all members (role_id = 2) for dropdowns/selection
+  static async getMembers(user: any) {
+    if (!(await checkIsAdmin(user.id))) {
+      throw new Error("Unauthorized: Only admin can view members");
+    }
+
+    const query = `
+      SELECT u.id, u.user_code, u.full_name, u.email, u.position_code, u.level_code
+      FROM users u
+      WHERE u.role_id = 2 AND u.deleted_at IS NULL
+      ORDER BY u.user_code ASC
+    `;
+    const result = await pool.query(query);
+
+    return result.rows;
+  }
+
   // Add new user (admin only)
   static async addUser(data: CreateUserInput, user: any) {
     if (!(await checkIsAdmin(user.id))) {

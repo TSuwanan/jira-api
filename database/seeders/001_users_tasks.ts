@@ -63,7 +63,7 @@ export async function up(pool: Pool) {
     ($4, $2),
     ($4, $5),
     ($6, $3)
-  `, [project1.id, admin.id, mintra.id, project2.id, mintra.id, project3.id]);
+  `, [project1.id, ninna.id, mintra.id, project2.id, mintra.id, project3.id]);
 
   console.log("✅ Added project members");
 

@@ -6,7 +6,7 @@ export const createTaskSchema = z.object({
   description: z.string().optional(),
   status: z.enum(["T", "I", "D"]).default("T"),
   priority: z.enum(["L", "M", "H"]).optional().nullable(),
-  assignee_id: z.string().uuid("Invalid assignee ID").optional(),
+  assignee_id: z.preprocess((val) => val === "" ? undefined : val, z.string().uuid("Invalid assignee ID").optional().nullable()),
   due_date: z.string().optional().refine((val) => !val || !isNaN(Date.parse(val)), {
     message: "Invalid date format",
   }),
@@ -17,7 +17,7 @@ export const updateTaskSchema = z.object({
   description: z.string().optional(),
   status: z.enum(["T", "I", "D"]).optional(),
   priority: z.enum(["L", "M", "H"]).optional().nullable(),
-  assignee_id: z.string().uuid("Invalid assignee ID").optional(),
+  assignee_id: z.preprocess((val) => val === "" ? undefined : val, z.string().uuid("Invalid assignee ID").optional().nullable()),
   due_date: z.string().optional().refine((val) => !val || !isNaN(Date.parse(val)), {
     message: "Invalid date format",
   }),
