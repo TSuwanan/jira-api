@@ -1,10 +1,12 @@
 import bcrypt from "bcryptjs";
 import { pool } from "../utils/db";
-import { CreateUserInput } from "../schemas/users";
+import { CreateUserInput } from "../schemas/manage-users";
 
 export class UserController {
-  // Get all users (admin only)
-  static async getAllUsers(user: any) {
+  // Get all users (admin only) with pagination and search
+  static async getAllUsers(user: any, page: number = 1, search?: string) {
+    const limit = 10;
+    const offset = (page - 1) * limit;
 
     // Check if requester is admin
     const requester = await pool.query(
@@ -16,13 +18,39 @@ export class UserController {
       throw new Error("Unauthorized: Only admin can view users");
     }
 
-    const result = await pool.query(
-      `SELECT id, user_code, email, full_name, role_id, position_code, level_code, created_at, updated_at
-       FROM users
-       WHERE deleted_at IS NULL
-       ORDER BY created_at DESC`
-    );
-    return result.rows;
+    // Build search condition
+    const searchCondition = search
+      ? "AND (u.user_code ILIKE $3 OR u.full_name ILIKE $3)"
+      : "";
+    const searchParam = search ? `%${search}%` : null;
+
+    // Get total count
+    const countQuery = search
+      ? "SELECT COUNT(*) FROM users u WHERE u.deleted_at IS NULL AND (u.user_code ILIKE $1 OR u.full_name ILIKE $1)"
+      : "SELECT COUNT(*) FROM users WHERE deleted_at IS NULL";
+    const countParams = search ? [searchParam] : [];
+    const countResult = await pool.query(countQuery, countParams);
+    const total = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(total / limit);
+
+    const query = `SELECT u.id, u.user_code, u.email, u.full_name, u.role_id, r.name as role_name, u.position_code, u.level_code, u.created_at, u.updated_at
+       FROM users u
+       LEFT JOIN roles r ON u.role_id = r.id
+       WHERE u.deleted_at IS NULL ${searchCondition}
+       ORDER BY u.created_at DESC
+       LIMIT $1 OFFSET $2`;
+    const params = search ? [limit, offset, searchParam] : [limit, offset];
+    const result = await pool.query(query, params);
+
+    return {
+      data: result.rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
+    };
   }
 
   // Add new user (admin only)

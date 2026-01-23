@@ -11,11 +11,13 @@ export const userRoutes = new Elysia({ prefix: "/api/users" })
       .use((app) => authMiddleware(app))
 
       // GET /api/users - Get all users (admin only)
-      .get("/", async ({ user, set }) => {
+      .get("/", async ({ user, set, query }) => {
         try {
-          const users = await UserController.getAllUsers(user);
+          const page = parseInt(query.page as string) || 1;
+          const search = query.search as string | undefined;
+          const result = await UserController.getAllUsers(user, page, search);
           return {
-            data: users,
+            ...result,
             message: "Users retrieved successfully",
             status: 200
            };
