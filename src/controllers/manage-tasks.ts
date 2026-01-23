@@ -3,8 +3,8 @@ import { CreateTaskInput, UpdateTaskInput } from "../schemas/manage-tasks";
 import { isAdmin as checkIsAdmin } from "../utils/admin-check";
 
 export class TaskController {
-  // Get tasks with optional project filter and search
-  static async getTasks(user: any, projectId?: string, page: number = 1, search?: string) {
+  // Get tasks with optional project filter, search and status
+  static async getTasks(user: any, projectId?: string, page: number = 1, search?: string, status?: string) {
     const isAdmin = await checkIsAdmin(user.id);
     const limit = 10;
     const offset = (page - 1) * limit;
@@ -27,6 +27,11 @@ export class TaskController {
     if (search) {
       conditions.push(`(t.task_code ILIKE $${paramIndex} OR t.title ILIKE $${paramIndex++})`);
       params.push(`%${search}%`);
+    }
+    
+    if (status) {
+      conditions.push(`t.status = $${paramIndex++}`);
+      params.push(status);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -65,10 +70,6 @@ export class TaskController {
 
   // Get single task
   static async getTaskById(taskId: string, user: any) {
-    if (!(await checkIsAdmin(user.id))) {
-      throw new Error("Unauthorized: Only admin can view task");
-    }
-
     const query = `
       SELECT t.*, p.name as project_name, u1.full_name as assignee_name
       FROM tasks t
@@ -109,7 +110,9 @@ export class TaskController {
       [project_id, title, description || null, status || 'T', priority || null, assignee_id || null, user.id, due_date || null]
     );
 
-    return result.rows[0];
+    const newTask = result.rows[0];
+    await this.updateProjectTaskCount(project_id);
+    return newTask;
   }
 
   // Edit task
@@ -157,7 +160,7 @@ export class TaskController {
     }
 
     const existing = await pool.query(
-      "SELECT id FROM tasks WHERE id = $1 AND deleted_at IS NULL",
+      "SELECT id, project_id FROM tasks WHERE id = $1 AND deleted_at IS NULL",
       [taskId]
     );
     if (existing.rows.length === 0) {
@@ -169,6 +172,18 @@ export class TaskController {
       [taskId]
     );
 
+    // Update project's task_count
+    await this.updateProjectTaskCount(existing.rows[0].project_id);
+
     return { id: taskId, deleted: true };
+  }
+
+  // Helper to update project's task_count
+  private static async updateProjectTaskCount(projectId: string) {
+    await pool.query(`
+      UPDATE projects 
+      SET task_count = (SELECT COUNT(*) FROM tasks WHERE project_id = $1 AND deleted_at IS NULL)
+      WHERE id = $1
+    `, [projectId]);
   }
 }

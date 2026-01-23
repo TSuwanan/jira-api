@@ -16,8 +16,9 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
           const page = parseInt(query.page as string) || 1;
           const search = query.search as string | undefined;
           const projectId = query.projectId as string | undefined;
+          const status = query.status as string | undefined;
           
-          const result = await TaskController.getTasks(user, projectId, page, search);
+          const result = await TaskController.getTasks(user, projectId, page, search, status);
           return {
             ...result,
             message: "Tasks retrieved successfully",
@@ -71,8 +72,8 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
         }
       })
 
-      // PATCH /api/tasks/:id - Edit task
-      .patch("/:id", async ({ params, body, user, set }) => {
+      // PUT /api/tasks/:id - Edit task
+      .put("/:id", async ({ params, body, user, set }) => {
         try {
           const validatedData = updateTaskSchema.parse(body);
           const updatedTask = await TaskController.editTask(params.id, validatedData, user);
