@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { pool } from "../utils/db";
 import { CreateUserInput } from "../schemas/manage-users";
+import { isAdmin as checkIsAdmin } from "../utils/admin-check";
 
 export class UserController {
   // Get all users (admin only) with pagination and search
@@ -8,13 +9,7 @@ export class UserController {
     const limit = 10;
     const offset = (page - 1) * limit;
 
-    // Check if requester is admin
-    const requester = await pool.query(
-      "SELECT role_id FROM users WHERE id = $1 AND deleted_at IS NULL",
-      [user.id]
-    );
-
-    if (requester.rows.length === 0 || requester.rows[0].role_id !== 1) {
+    if (!(await checkIsAdmin(user.id))) {
       throw new Error("Unauthorized: Only admin can view users");
     }
 
@@ -55,13 +50,7 @@ export class UserController {
 
   // Add new user (admin only)
   static async addUser(data: CreateUserInput, user: any) {
-    // Check if requester is admin
-    const requester = await pool.query(
-      "SELECT role_id FROM users WHERE id = $1",
-      [user.id]
-    );
-
-    if (requester.rows.length === 0 || requester.rows[0].role_id !== 1) {
+    if (!(await checkIsAdmin(user.id))) {
       throw new Error("Unauthorized: Only admin can add users");
     }
 
@@ -94,13 +83,7 @@ export class UserController {
 
   // Delete user (admin only) - soft delete
   static async deleteUser(userId: string, user: any) {
-    // Check if requester is admin
-    const requester = await pool.query(
-      "SELECT role_id FROM users WHERE id = $1 AND deleted_at IS NULL",
-      [user.id]
-    );
-
-    if (requester.rows.length === 0 || requester.rows[0].role_id !== 1) {
+    if (!(await checkIsAdmin(user.id))) {
       throw new Error("Unauthorized: Only admin can delete users");
     }
 

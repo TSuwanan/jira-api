@@ -1,5 +1,6 @@
 import { pool } from "../utils/db";
 import { CreateProjectInput, UpdateProjectInput } from "../schemas/manage-projects";
+import { isAdmin as checkIsAdmin } from "../utils/admin-check";
 
 export class ProjectController {
   // Get all projects with pagination and search
@@ -7,12 +8,7 @@ export class ProjectController {
     const limit = 10;
     const offset = (page - 1) * limit;
 
-    // Check if requester is admin
-    const requester = await pool.query(
-      "SELECT role_id FROM users WHERE id = $1 AND deleted_at IS NULL",
-      [user.id]
-    );
-    if (requester.rows.length === 0 || requester.rows[0].role_id !== 1) {
+    if (!(await checkIsAdmin(user.id))) {
       throw new Error("Unauthorized: Only admin can view users");
     }
 
@@ -77,12 +73,7 @@ export class ProjectController {
 
   // Get single project by ID
   static async getProjectById(projectId: string, user: any) {
-    // Check if requester is admin
-    const requester = await pool.query(
-      "SELECT role_id FROM users WHERE id = $1 AND deleted_at IS NULL",
-      [user.id]
-    );
-    if (requester.rows.length === 0 || requester.rows[0].role_id !== 1) {
+    if (!(await checkIsAdmin(user.id))) {
       throw new Error("Unauthorized: Only admin can view project");
     }
 
@@ -123,12 +114,7 @@ export class ProjectController {
     const { name, description, member_ids } = data;
     const finalOwnerId = user.id;
 
-    // Check if requester is admin
-    const requester = await pool.query(
-      "SELECT role_id FROM users WHERE id = $1 AND deleted_at IS NULL",
-      [user.id]
-    );
-    if (requester.rows.length === 0 || requester.rows[0].role_id !== 1) {
+    if (!(await checkIsAdmin(user.id))) {
       throw new Error("Unauthorized: Only admin can create project");
     }
 
@@ -186,12 +172,7 @@ export class ProjectController {
     }
 
     // Check permissions: only owner or admin can edit
-    const requester = await pool.query(
-      "SELECT role_id FROM users WHERE id = $1",
-      [user.id]
-    );
-
-    const isAdmin = requester.rows[0]?.role_id === 1;
+    const isAdmin = await checkIsAdmin(user.id);
     const isOwner = existing.rows[0].owner_id === user.id;
 
     if (!isAdmin && !isOwner) {
@@ -277,12 +258,7 @@ export class ProjectController {
       throw new Error("Project not found");
     }
 
-    const requester = await pool.query(
-      "SELECT role_id FROM users WHERE id = $1",
-      [user.id]
-    );
-    
-    const isAdmin = requester.rows[0]?.role_id === 1;
+    const isAdmin = await checkIsAdmin(user.id);
     const isOwner = existing.rows[0].owner_id === user.id;
 
     if (!isAdmin && !isOwner) {

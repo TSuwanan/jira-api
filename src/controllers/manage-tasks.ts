@@ -1,29 +1,23 @@
 import { pool } from "../utils/db";
 import { CreateTaskInput, UpdateTaskInput } from "../schemas/manage-tasks";
+import { isAdmin as checkIsAdmin } from "../utils/admin-check";
 
 export class TaskController {
-  // Check if user is admin helper
-  private static async isAdmin(userId: string) {
-    const requester = await pool.query(
-      "SELECT role_id FROM users WHERE id = $1 AND deleted_at IS NULL",
-      [userId]
-    );
-    return requester.rows.length > 0 && requester.rows[0].role_id === 1;
-  }
-
   // Get tasks with optional project filter and search
   static async getTasks(user: any, projectId?: string, page: number = 1, search?: string) {
-    // Admin only check
-    if (!(await this.isAdmin(user.id))) {
-      throw new Error("Unauthorized: Only admin can view tasks");
-    }
-
+    const isAdmin = await checkIsAdmin(user.id);
     const limit = 10;
     const offset = (page - 1) * limit;
 
     let conditions = ["t.deleted_at IS NULL"];
     let params: any[] = [];
     let paramIndex = 1;
+
+    // If not admin, only show tasks assigned to the user
+    if (!isAdmin) {
+      conditions.push(`t.assignee_id = $${paramIndex++}`);
+      params.push(user.id);
+    }
 
     if (projectId) {
       conditions.push(`t.project_id = $${paramIndex++}`);
@@ -71,7 +65,7 @@ export class TaskController {
 
   // Get single task
   static async getTaskById(taskId: string, user: any) {
-    if (!(await this.isAdmin(user.id))) {
+    if (!(await checkIsAdmin(user.id))) {
       throw new Error("Unauthorized: Only admin can view task");
     }
 
@@ -93,7 +87,7 @@ export class TaskController {
 
   // Add task
   static async addTask(data: CreateTaskInput, user: any) {
-    if (!(await this.isAdmin(user.id))) {
+    if (!(await checkIsAdmin(user.id))) {
       throw new Error("Unauthorized: Only admin can create task");
     }
 
@@ -112,7 +106,7 @@ export class TaskController {
       `INSERT INTO tasks (project_id, title, description, status, priority, assignee_id, created_by, due_date)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [project_id, title, description || null, status || 'todo', priority || 'medium', assignee_id || null, user.id, due_date || null]
+      [project_id, title, description || null, status || 'T', priority || null, assignee_id || null, user.id, due_date || null]
     );
 
     return result.rows[0];
@@ -120,7 +114,7 @@ export class TaskController {
 
   // Edit task
   static async editTask(taskId: string, data: UpdateTaskInput, user: any) {
-    if (!(await this.isAdmin(user.id))) {
+    if (!(await checkIsAdmin(user.id))) {
       throw new Error("Unauthorized: Only admin can edit task");
     }
 
@@ -135,7 +129,7 @@ export class TaskController {
     const { title, description, status, priority, assignee_id, due_date } = data;
 
     let updateFields = [];
-    let params = [taskId];
+    let params: any[] = [taskId];
     let paramIndex = 2;
 
     if (title !== undefined) { updateFields.push(`title = $${paramIndex++}`); params.push(title); }
@@ -158,7 +152,7 @@ export class TaskController {
 
   // Soft delete task
   static async deleteTask(taskId: string, user: any) {
-    if (!(await this.isAdmin(user.id))) {
+    if (!(await checkIsAdmin(user.id))) {
       throw new Error("Unauthorized: Only admin can delete task");
     }
 
