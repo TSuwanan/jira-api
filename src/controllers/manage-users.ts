@@ -4,7 +4,7 @@ import { CreateUserInput } from "../schemas/manage-users";
 
 export class UserController {
   // Get all users (admin only) with pagination and search
-  static async getAllUsers(user: any, page: number = 1, search?: string) {
+  static async getUsers(user: any, page: number = 1, search?: string) {
     const limit = 10;
     const offset = (page - 1) * limit;
 
@@ -37,7 +37,7 @@ export class UserController {
        FROM users u
        LEFT JOIN roles r ON u.role_id = r.id
        WHERE u.deleted_at IS NULL ${searchCondition}
-       ORDER BY u.created_at DESC
+       ORDER BY u.user_code ASC
        LIMIT $1 OFFSET $2`;
     const params = search ? [limit, offset, searchParam] : [limit, offset];
     const result = await pool.query(query, params);

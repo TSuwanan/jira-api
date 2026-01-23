@@ -67,6 +67,7 @@ export async function up(pool: Pool) {
       project_code VARCHAR(20) UNIQUE NOT NULL DEFAULT ('PJ' || TO_CHAR(CURRENT_DATE, 'YYMMDD') || LPAD(nextval('project_code_seq')::TEXT, 3, '0')),
       name VARCHAR(255) NOT NULL,
       description TEXT,
+      task_count INTEGER DEFAULT 0,
       owner_id UUID REFERENCES users(id),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -93,8 +94,8 @@ export async function up(pool: Pool) {
       project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
       title VARCHAR(255) NOT NULL,
       description TEXT,
-      status VARCHAR(20) DEFAULT 'todo',
-      priority VARCHAR(20) DEFAULT 'medium',
+      status VARCHAR(20) DEFAULT 'T',
+      priority VARCHAR(20) DEFAULT NULL,
       assignee_id UUID REFERENCES users(id) ON DELETE SET NULL,
       created_by UUID REFERENCES users(id),
       due_date DATE,
@@ -103,6 +104,12 @@ export async function up(pool: Pool) {
       deleted_at TIMESTAMP DEFAULT NULL
     )
   `);
+
+      // เพิ่ม comments แยก
+    await pool.query(`
+    COMMENT ON COLUMN tasks.status IS 'Status codes: T=Todo, I= In Progress, D= Done';
+    COMMENT ON COLUMN tasks.priority IS 'Priority codes: L=Low, M=Medium, H=High';
+    `);
   console.log("✅ Created tasks table");
   
   // Create comments table

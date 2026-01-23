@@ -44,12 +44,12 @@ export async function up(pool: Pool) {
 
   // Create projects (project_code จะถูก generate อัตโนมัติ)
   const projectsResult = await pool.query(`
-    INSERT INTO projects (name, description, owner_id) VALUES
-    ('Website Redesign', 'Redesign company website with modern UI', $1),
-    ('Mobile App', 'Develop iOS and Android mobile application', $1),
-    ('API Development', 'Build RESTful API for all services', $2)
-    RETURNING id, project_code, name, owner_id
-  `, [admin.id, mintra.id]);
+    INSERT INTO projects (name, description, owner_id, task_count) VALUES
+    ('Website Redesign', 'Redesign company website with modern UI', $1, 3),
+    ('Mobile App', 'Develop iOS and Android mobile application', $1, 2),
+    ('API Development', 'Build RESTful API for all services', $1, 2)
+    RETURNING id, project_code, name, owner_id, task_count
+  `, [admin.id]);
 
   console.log("✅ Created projects:", projectsResult.rows);
 
@@ -70,13 +70,13 @@ export async function up(pool: Pool) {
   // Create tasks (task_code จะถูก generate อัตโนมัติ)
   const tasksResult = await pool.query(`
     INSERT INTO tasks (project_id, title, description, status, priority, assignee_id, created_by, due_date) VALUES
-    ($1, 'Design homepage mockup', 'Create wireframes and mockups for new homepage', 'in_progress', 'high', $2, $3, CURRENT_DATE + INTERVAL '7 days'),
-    ($1, 'Setup development environment', 'Configure local dev environment for the project', 'done', 'medium', $2, $3, CURRENT_DATE - INTERVAL '2 days'),
-    ($1, 'Review color palette', 'Review and approve new brand colors', 'todo', 'low', $4, $3, CURRENT_DATE + INTERVAL '14 days'),
-    ($5, 'Design app icon', 'Create app icon for iOS and Android', 'todo', 'high', $4, $3, CURRENT_DATE + INTERVAL '5 days'),
-    ($5, 'Setup CI/CD pipeline', 'Configure automated testing and deployment', 'in_progress', 'high', $2, $6, CURRENT_DATE + INTERVAL '3 days'),
-    ($7, 'Define API endpoints', 'Document all required API endpoints', 'done', 'high', $2, $6, CURRENT_DATE - INTERVAL '5 days'),
-    ($7, 'Implement authentication', 'Add JWT authentication to API', 'in_progress', 'high', $2, $6, CURRENT_DATE + INTERVAL '2 days')
+    ($1, 'Design homepage mockup', 'Create wireframes and mockups for new homepage', 'I', 'H', $2, $3, CURRENT_DATE + INTERVAL '7 days'),
+    ($1, 'Setup development environment', 'Configure local dev environment for the project', 'D', 'M', $2, $3, CURRENT_DATE - INTERVAL '2 days'),
+    ($1, 'Review color palette', 'Review and approve new brand colors', 'I', 'L', $4, $3, CURRENT_DATE + INTERVAL '14 days'),
+    ($5, 'Design app icon', 'Create app icon for iOS and Android', 'I', 'H', $4, $3, CURRENT_DATE + INTERVAL '5 days'),
+    ($5, 'Setup CI/CD pipeline', 'Configure automated testing and deployment', 'I', 'H', $2, $6, CURRENT_DATE + INTERVAL '3 days'),
+    ($7, 'Define API endpoints', 'Document all required API endpoints', 'D', 'H', $2, $6, CURRENT_DATE - INTERVAL '5 days'),
+    ($7, 'Implement authentication', 'Add JWT authentication to API', 'I', 'H', $2, $6, CURRENT_DATE + INTERVAL '2 days')
     RETURNING id, task_code, title, status
   `, [project1.id, mintra.id, admin.id, ninna.id, project2.id, mintra.id, project3.id]);
 

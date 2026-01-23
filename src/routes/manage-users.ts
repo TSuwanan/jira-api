@@ -15,7 +15,7 @@ export const userRoutes = new Elysia({ prefix: "/api/users" })
         try {
           const page = parseInt(query.page as string) || 1;
           const search = query.search as string | undefined;
-          const result = await UserController.getAllUsers(user, page, search);
+          const result = await UserController.getUsers(user, page, search);
           return {
             ...result,
             message: "Users retrieved successfully",
@@ -61,7 +61,6 @@ export const userRoutes = new Elysia({ prefix: "/api/users" })
         }
       })
 
-      // DELETE /api/users/:id - Delete user (admin only)
       .delete("/:id", async ({ params, user, set }) => {
         try {
           const result = await UserController.deleteUser(params.id, user);
