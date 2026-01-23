@@ -116,7 +116,7 @@ export class ProjectController {
     }
 
     // Check if project exists
-    const projectCheck = await pool.query(
+    const projectCheck = await pool.query(  
       "SELECT id FROM projects WHERE id = $1 AND deleted_at IS NULL",
       [projectId]
     );

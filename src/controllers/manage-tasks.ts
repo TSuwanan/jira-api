@@ -150,7 +150,7 @@ export class TaskController {
     return result.rows[0];
   }
 
-  // Soft delete task
+  // Delete task (Hard delete)
   static async deleteTask(taskId: string, user: any) {
     if (!(await checkIsAdmin(user.id))) {
       throw new Error("Unauthorized: Only admin can delete task");
@@ -165,7 +165,7 @@ export class TaskController {
     }
 
     await pool.query(
-      "UPDATE tasks SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1",
+      "DELETE FROM tasks WHERE id = $1",
       [taskId]
     );
 

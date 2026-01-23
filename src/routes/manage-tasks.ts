@@ -102,7 +102,7 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
         }
       })
 
-      // DELETE /api/tasks/:id - Soft delete task
+      // DELETE /api/tasks/:id - delete task
       .delete("/:id", async ({ params, user, set }) => {
         try {
           const result = await TaskController.deleteTask(params.id, user);
