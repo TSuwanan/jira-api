@@ -1,5 +1,5 @@
 import { pool } from "../utils/db";
-import { CreateTaskInput, UpdateTaskInput } from "../schemas/manage-tasks";
+import { CreateTaskInput, UpdateTaskInput, CompleteTaskInput } from "../schemas/manage-tasks";
 import { isAdmin as checkIsAdmin } from "../utils/admin-check";
 
 export class TaskController {
@@ -83,7 +83,22 @@ export class TaskController {
       throw new Error("Task not found");
     }
 
-    return result.rows[0];
+    const task = result.rows[0];
+
+    // If status is 'D' (Done), fetch comments
+    if (task.status === 'D') {
+      const commentsResult = await pool.query(
+        `SELECT c.id, c.content, c.created_at, u.full_name as user_name
+         FROM comments c
+         LEFT JOIN users u ON c.user_id = u.id
+         WHERE c.task_id = $1
+         ORDER BY c.created_at DESC`,
+        [taskId]
+      );
+      task.comments = commentsResult.rows[0];
+    }
+
+    return task;
   }
 
   // Add task
@@ -178,10 +193,51 @@ export class TaskController {
     return { id: taskId, deleted: true };
   }
 
+  // Complete task - Update status to 'D' and add comment
+  static async updateTaskStatus(taskId: string, data: CompleteTaskInput, user: any) {
+    // Check if task exists
+    const existing = await pool.query(
+      "SELECT id, status FROM tasks WHERE id = $1 AND deleted_at IS NULL",
+      [taskId]
+    );
+    if (existing.rows.length === 0) {
+      throw new Error("Task not found");
+    }
+
+    const task = existing.rows[0];
+    if (task.status === 'D') {
+      throw new Error("Task is already completed");
+    }
+
+    // Update task status to 'D' (Done)
+    await pool.query(
+      `UPDATE tasks SET status = 'D', updated_at = NOW() WHERE id = $1`,
+      [taskId]
+    );
+
+    // Insert comment
+    await pool.query(
+      `INSERT INTO comments (task_id, user_id, content) VALUES ($1, $2, $3)`,
+      [taskId, user.id, data.comment]
+    );
+
+    // Return updated task
+    const result = await pool.query(
+      `SELECT t.*, p.name as project_name, u1.full_name as assignee_name
+       FROM tasks t
+       LEFT JOIN projects p ON t.project_id = p.id
+       LEFT JOIN users u1 ON t.assignee_id = u1.id
+       WHERE t.id = $1`,
+      [taskId]
+    );
+
+    return result.rows[0];
+  }
+
   // Helper to update project's task_count
   private static async updateProjectTaskCount(projectId: string) {
     await pool.query(`
-      UPDATE projects 
+      UPDATE projects
       SET task_count = (SELECT COUNT(*) FROM tasks WHERE project_id = $1 AND deleted_at IS NULL)
       WHERE id = $1
     `, [projectId]);

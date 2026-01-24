@@ -71,38 +71,22 @@ export async function up(pool: Pool) {
   const tasksResult = await pool.query(`
     INSERT INTO tasks (project_id, title, description, status, priority, assignee_id, created_by, due_date) VALUES
     ($1, 'Design homepage mockup', 'Create wireframes and mockups for new homepage', 'I', 'H', $2, $3, CURRENT_DATE + INTERVAL '7 days'),
-    ($1, 'Setup development environment', 'Configure local dev environment for the project', 'D', 'M', $2, $3, CURRENT_DATE - INTERVAL '2 days'),
+    ($1, 'Setup development environment', 'Configure local dev environment for the project', 'I', 'M', $2, $3, CURRENT_DATE - INTERVAL '2 days'),
     ($1, 'Review color palette', 'Review and approve new brand colors', 'I', 'L', $4, $3, CURRENT_DATE + INTERVAL '14 days'),
     ($5, 'Design app icon', 'Create app icon for iOS and Android', 'I', 'H', $4, $3, CURRENT_DATE + INTERVAL '5 days'),
     ($5, 'Setup CI/CD pipeline', 'Configure automated testing and deployment', 'I', 'H', $2, $6, CURRENT_DATE + INTERVAL '3 days'),
-    ($7, 'Define API endpoints', 'Document all required API endpoints', 'D', 'H', $2, $6, CURRENT_DATE - INTERVAL '5 days'),
+    ($7, 'Define API endpoints', 'Document all required API endpoints', 'I', 'H', $2, $6, CURRENT_DATE - INTERVAL '5 days'),
     ($7, 'Implement authentication', 'Add JWT authentication to API', 'I', 'H', $2, $6, CURRENT_DATE + INTERVAL '2 days')
     RETURNING id, task_code, title, status
   `, [project1.id, mintra.id, admin.id, ninna.id, project2.id, mintra.id, project3.id]);
 
   console.log("✅ Created tasks:", tasksResult.rows);
 
-  // หา task ids จาก RETURNING
-  const homepageTask = tasksResult.rows.find(t => t.title === 'Design homepage mockup');
-  const cicdTask = tasksResult.rows.find(t => t.title === 'Setup CI/CD pipeline');
-
-  // Create comments โดยใช้ id ที่ได้จาก RETURNING
-  await pool.query(`
-    INSERT INTO comments (task_id, user_id, content) VALUES
-    ($1, $2, 'Looking great so far! Can we add more whitespace?'),
-    ($1, $3, 'Sure, I will update the mockup today.'),
-    ($4, $5, 'Which CI/CD tool should we use?'),
-    ($4, $6, 'Let''s go with GitHub Actions for now.')
-  `, [homepageTask.id, admin.id, ninna.id, cicdTask.id, ninna.id, mintra.id]);
-
-  console.log("✅ Created comments");
-  console.log("✅ Seed 001_users_tasks completed");
 }
 
 export async function down(pool: Pool) {
   console.log("Rolling back seed: 001_users_tasks");
   
-  await pool.query(`DELETE FROM comments`);
   await pool.query(`DELETE FROM tasks`);
   await pool.query(`DELETE FROM project_members`);
   await pool.query(`DELETE FROM projects`);

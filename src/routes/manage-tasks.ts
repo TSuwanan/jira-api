@@ -1,7 +1,7 @@
 import { Elysia } from "elysia";
 import { ZodError } from "zod";
 import { TaskController } from "../controllers/manage-tasks";
-import { createTaskSchema, updateTaskSchema } from "../schemas/manage-tasks";
+import { createTaskSchema, updateTaskSchema, completeTaskSchema } from "../schemas/manage-tasks";
 import { jwtPlugin, authMiddleware } from "../middleware/auth";
 
 export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
@@ -107,16 +107,47 @@ export const taskRoutes = new Elysia({ prefix: "/api/tasks" })
       .delete("/:id", async ({ params, user, set }) => {
         try {
           const result = await TaskController.deleteTask(params.id, user);
-          return { 
-            data: result, 
-            message: "Task deleted successfully", 
-            status: 200 
+          return {
+            data: result,
+            message: "Task deleted successfully",
+            status: 200
           };
         } catch (error: any) {
           if (error.message.includes("Unauthorized")) set.status = 403;
           else if (error.message === "Task not found") set.status = 404;
           else set.status = 500;
-          
+
+          return { error: error.message };
+        }
+      })
+
+      // PUT /api/tasks/:id/status - Update task status and add comment
+      .put("/:id/status", async ({ params, body, user, set }) => {
+        try {
+          const validatedData = completeTaskSchema.parse(body);
+          const result = await TaskController.updateTaskStatus(params.id, validatedData, user);
+
+          return {
+            data: result,
+            message: "Task completed successfully",
+            status: 200
+          };
+        } catch (error: any) {
+          if (error instanceof ZodError) {
+            set.status = 400;
+            return {
+              error: "Validation failed",
+              details: error.issues.map((err) => ({
+                field: err.path.join("."),
+                message: err.message,
+              })),
+            };
+          }
+
+          if (error.message === "Task not found") set.status = 404;
+          else if (error.message === "Task is already completed") set.status = 400;
+          else set.status = 500;
+
           return { error: error.message };
         }
       })

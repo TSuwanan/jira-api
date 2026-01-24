@@ -23,5 +23,10 @@ export const updateTaskSchema = z.object({
   }),
 });
 
+export const completeTaskSchema = z.object({
+  comment: z.string().min(1, "Comment is required").max(1000),
+});
+
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
+export type CompleteTaskInput = z.infer<typeof completeTaskSchema>;
