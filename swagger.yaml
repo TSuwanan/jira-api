@@ -1,0 +1,1084 @@
+openapi: 3.0.3
+info:
+  title: Mini Jira - Task Management API
+  description: |
+    API for Jira-like task management system
+    
+    ## Features
+    - Authentication & Authorization
+    - User Management
+    - Project Management
+    - Task Management with Workflow
+    
+    ## Authentication
+    Uses JWT Bearer Token for authentication
+    
+    Include token in header: `Authorization: Bearer <token>`
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: Login and user verification
+  - name: Users
+    description: User management
+  - name: Roles
+    description: Role management
+  - name: Projects
+    description: Project management
+  - name: Tasks
+    description: Task management
+
+paths:
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login
+      description: Login with email and password to receive JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@example.com
+                password:
+                  type: string
+                  format: password
+                  example: admin123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                      user:
+                        $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /api/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user information
+      description: Retrieve information of the logged-in user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/users/:
+    get:
+      tags:
+        - Users
+      summary: Get all users
+      description: Retrieve list of users with pagination and filtering
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: search
+          in: query
+          description: Search by name or email
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    
+    post:
+      tags:
+        - Users
+      summary: Create new user
+      description: Add a new user to the system
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - full_name
+                - phone_number
+                - position_code
+                - level_code
+                - roleId
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: sky@example.com
+                full_name:
+                  type: string
+                  example: Sky Cooper
+                phone_number:
+                  type: string
+                  example: 08675456443
+                position_code:
+                  type: string
+                  example: DEV
+                level_code:
+                  type: string
+                  example: J
+                roleId:
+                  type: integer
+                  example: 2
+      responses:
+        '201':
+          description: Created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/users/members:
+    get:
+      tags:
+        - Users
+      summary: Get all members
+      description: Retrieve list of regular members (non-admin users)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/users/{id}:
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      description: Remove user from the system
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/roles/:
+    get:
+      tags:
+        - Roles
+      summary: Get all roles
+      description: Retrieve roles for user permission assignment
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/projects/:
+    get:
+      tags:
+        - Projects
+      summary: Get all projects
+      description: Retrieve list of projects with pagination and filtering
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: search
+          in: query
+          description: Search by project name
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    
+    post:
+      tags:
+        - Projects
+      summary: Create new project
+      description: Add a new project to the system with members
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: Project A
+                description:
+                  type: string
+                  example: Description here
+                member_ids:
+                  type: array
+                  description: Array of user IDs to add as project members
+                  items:
+                    type: string
+                    format: uuid
+                  example: ["1a940160-7f2b-4dae-ba8e-f507050f475b"]
+      responses:
+        '201':
+          description: Created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/projects/{id}:
+    get:
+      tags:
+        - Projects
+      summary: Get project details
+      description: Retrieve project information by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Project'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    
+    put:
+      tags:
+        - Projects
+      summary: Update project
+      description: Update project information and members
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Project A
+                description:
+                  type: string
+                  example: Description here
+                member_ids:
+                  type: array
+                  description: Array of user IDs to update project members
+                  items:
+                    type: string
+                    format: uuid
+                  example: ["1a940160-7f2b-4dae-ba8e-f507050f475b"]
+      responses:
+        '200':
+          description: Updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Project'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    
+    delete:
+      tags:
+        - Projects
+      summary: Delete project
+      description: Remove project from the system
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Project deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/projects/{id}/members:
+    get:
+      tags:
+        - Projects
+      summary: Get project members
+      description: Retrieve list of all members in the project
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProjectMember'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/tasks/:
+    get:
+      tags:
+        - Tasks
+      summary: Get all tasks
+      description: Retrieve list of tasks with pagination and filtering
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: projectId
+          in: query
+          description: Filter by project
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [T, I, D]
+        - name: assigneeId
+          in: query
+          description: Filter by assignee
+          schema:
+            type: string
+            format: uuid
+        - name: priority
+          in: query
+          description: Filter by priority
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, URGENT]
+        - name: search
+          in: query
+          description: Search by title or description
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    
+    post:
+      tags:
+        - Tasks
+      summary: Create new task
+      description: Add a new task to the project
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - project_id
+              properties:
+                title:
+                  type: string
+                  example: Implement user authentication
+                description:
+                  type: string
+                  example: Add JWT-based authentication system
+                project_id:
+                  type: string
+                  format: uuid
+                  example: 1a940160-7f2b-4dae-ba8e-f507050f475b
+                priority:
+                  type: string
+                  enum: [L, M, H]
+                  default: M
+                status:
+                  type: string
+                  enum: [T, I, D]
+                  default: T
+      responses:
+        '201':
+          description: Created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/tasks/{id}:
+    get:
+      tags:
+        - Tasks
+      summary: Get task details
+      description: Retrieve task information by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    
+    put:
+      tags:
+        - Tasks
+      summary: Update task
+      description: Update task information
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: Implement user authentication
+                description:
+                  type: string
+                  example: Add JWT-based authentication system
+                project_id:
+                  type: string
+                  format: uuid
+                  example: 1a940160-7f2b-4dae-ba8e-f507050f475b
+                priority:
+                  type: string
+                  enum: [L, M, H]
+                  example: M
+                status:
+                  type: string
+                  enum: [T, I, D]
+                  example: I
+      responses:
+        '200':
+          description: Updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    
+    delete:
+      tags:
+        - Tasks
+      summary: Delete task
+      description: Remove task from the system
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Task deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/tasks/{id}/status:
+    put:
+      tags:
+        - Tasks
+      summary: Change task status
+      description: |
+        Update task status according to workflow
+        
+        **Workflow:**
+        - Change status to Done
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+                - comment
+              properties:
+                status:
+                  type: string
+                  example: D
+                comment:
+                  type: string
+                  example: Completed
+      responses:
+        '200':
+          description: Status changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Task'
+        '400':
+          description: Invalid status transition according to workflow
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: Invalid status transition
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter JWT token received from login
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 1a940160-7f2b-4dae-ba8e-f507050f475b
+        email:
+          type: string
+          format: email
+          example: sky@example.com
+        full_name:
+          type: string
+          example: Sky Cooper
+        phone_number:
+          type: string
+          example: 08675456443
+        position_code:
+          type: string
+          example: DEV
+        level_code:
+          type: string
+          example: J
+        roleId:
+          type: integer
+          example: 2
+        role:
+          $ref: '#/components/schemas/Role'
+        created_at:
+          type: string
+          format: date-time
+          example: 2024-01-15T10:30:00Z
+        updated_at:
+          type: string
+          format: date-time
+          example: 2024-01-15T10:30:00Z
+
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Admin
+        description:
+          type: string
+          example: Administrator with full access
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 1a940160-7f2b-4dae-ba8e-f507050f475b
+        name:
+          type: string
+          example: Project A
+        description:
+          type: string
+          example: Description here
+        created_by:
+          type: string
+          format: uuid
+          example: 1a940160-7f2b-4dae-ba8e-f507050f475b
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProjectMember:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          example: 1a940160-7f2b-4dae-ba8e-f507050f475b
+        project_id:
+          type: string
+          format: uuid
+          example: 2b940160-7f2b-4dae-ba8e-f507050f475c
+        user:
+          $ref: '#/components/schemas/User'
+        joined_at:
+          type: string
+          format: date-time
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 1a940160-7f2b-4dae-ba8e-f507050f475b
+        title:
+          type: string
+          example: Implement user authentication
+        description:
+          type: string
+          example: Add JWT-based authentication system
+        status:
+          type: string
+          enum: [T, I, D]
+          example: T
+        priority:
+          type: string
+          enum: [L, M, H]
+          example: M
+        project_id:
+          type: string
+          format: uuid
+          example: 1a940160-7f2b-4dae-ba8e-f507050f475b
+        project:
+          $ref: '#/components/schemas/Project'
+        assignee_id:
+          type: string
+          format: uuid
+          example: 2b940160-7f2b-4dae-ba8e-f507050f475c
+        assignee:
+          $ref: '#/components/schemas/User'
+        created_by:
+          type: string
+          format: uuid
+          example: 1a940160-7f2b-4dae-ba8e-f507050f475b
+        creator:
+          $ref: '#/components/schemas/User'
+        due_date:
+          type: string
+          format: date-time
+          example: 2024-12-31T23:59:59Z
+        estimated_hours:
+          type: number
+          example: 8
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 50
+        total_pages:
+          type: integer
+          example: 5
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: Error message here
+        message:
+          type: string
+          example: Detailed error description
+
+  responses:
+    UnauthorizedError:
+      description: Unauthorized - Login required or token expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error: Unauthorized
+            message: Please login to access this resource
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error: Not Found
+            message: Resource not found
+
+    BadRequestError:
+      description: Invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error: Bad Request
+            message: Invalid input data
+
+security:
+  - bearerAuth: []
